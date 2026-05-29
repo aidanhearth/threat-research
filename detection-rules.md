@@ -154,6 +154,7 @@ tags:
 - Strict `not socket(AF_INET)` may miss attackers who also create a benign network socket as decoy — consider relaxing to `socket count < threshold` in production
 - Audio device path varies by distribution (`/dev/snd/...` is typical; PulseAudio/PipeWire abstract this via libasound)
 - Pair with EDR memory-scanning of any process that triggers the rule, looking for the preamble byte sequence in its address space
+- ⚠️ **Correlation prerequisite (read before deploying)**: the three conditions (audio-device open + RWX `mmap` + no `AF_INET` socket) span a process lifetime. Stock per-event Sigma backends evaluate one event at a time and do NOT correlate across them — deploy via a correlation-capable pipeline (Sigma correlation rules, Elastic EQL `sequence`, or auditd session grouping). Without correlation this degrades into three separate noisy signals rather than one high-fidelity detection. Also requires auditd configured to log `mmap` (frequently omitted by default due to event volume), `socket`, and PATH records for `/dev/snd/*`.
 
 ---
 
@@ -164,10 +165,14 @@ For environments running Falco or custom eBPF audit (Suricata is network-only an
 ```yaml
 - rule: Acoustic_FSK_Shellcode_Loader
   desc: >
-    Process opens ALSA audio capture device, allocates RWX anonymous
-    memory, and has no outbound network connections within a 60-second
-    window. Matches the cocomelonc acoustic-FSK-shellcode receiver
-    behaviour pattern.
+    Heuristic starting point for the cocomelonc acoustic-FSK-shellcode
+    receiver pattern: a process opens an ALSA capture device, is linked
+    against libasound, and is not a known audio application. NOT a complete
+    detection on its own — the single openat condition below does NOT
+    correlate RWX (PROT_EXEC) mmap or absence of network egress. For
+    production, extend into a stateful rule correlating audio-open +
+    anonymous PROT_EXEC mmap + no AF_INET socket over a time window
+    (via Falco aggregation/append output, or a SIEM correlation rule).
   condition: >
     (evt.type = openat
      and (fd.name startswith "/dev/snd/pcmC"

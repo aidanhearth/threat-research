@@ -6,7 +6,7 @@
 **Original PoC publish date**: 2026-05-26
 **This analysis ship date**: 2026-05-28
 **Scope**: defensive analysis + detection rule development (YARA / Sigma / Falco/eBPF)
-**License**: Analysis original work by Aidan Hearth, references upstream PoC under educational use
+**License**: Detection rules and analysis released under [CC BY 4.0](LICENSE) — free to use, modify, and ship with credit. Original PoC referenced under educational use; analysis is original work by Aidan Hearth.
 
 ---
 
@@ -18,8 +18,7 @@ This package contains:
 
 1. [`analysis.md`](analysis.md) — Technical breakdown of the FSK protocol, Goertzel algorithm role, frame structure, and execution path
 2. [`detection-rules.md`](detection-rules.md) — YARA, Sigma, and Falco/eBPF rules for detection in compiled binaries and process behaviour
-3. [`linkedin-writeup-draft.md`](linkedin-writeup-draft.md) — Public-facing summary for LinkedIn / blog post
-4. [`references.md`](references.md) — Links to original PoC + author + related prior work
+3. [`references.md`](references.md) — Links to original PoC + author + related prior work
 
 ## Why it matters (defensive perspective)
 
@@ -31,9 +30,8 @@ This package contains:
 ## Attribution + ethical scope
 
 - Original PoC author @cocomelonc published this as educational research under his "malware-tricks" series (post #57)
-- This document analyses the PoC from a **defensive perspective** for blue teams and EDR vendors
-- No exploitation against third parties; no modification of the PoC for malicious purpose
-- Aidan Hearth performs lawful dual-use cybersecurity research per established researcher community norms
+- This is defensive analysis for blue teams and EDR vendors
+- No third-party systems tested. No offensive use. The PoC was not modified or weaponized.
 
 ## Contact
 
