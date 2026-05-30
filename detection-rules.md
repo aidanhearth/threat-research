@@ -166,8 +166,8 @@ For environments running Falco or custom eBPF audit (Suricata is network-only an
 - rule: Acoustic_FSK_Shellcode_Loader
   desc: >
     Heuristic starting point for the cocomelonc acoustic-FSK-shellcode
-    receiver pattern: a process opens an ALSA capture device, is linked
-    against libasound, and is not a known audio application. NOT a complete
+    receiver pattern: a process opens an ALSA capture/control device and is
+    not a known audio application. NOT a complete
     detection on its own — the single openat condition below does NOT
     correlate RWX (PROT_EXEC) mmap or absence of network egress. For
     production, extend into a stateful rule correlating audio-open +
@@ -183,12 +183,11 @@ For environments running Falco or custom eBPF audit (Suricata is network-only an
     and proc.aname != "obs"
     and proc.aname != "audacity"
     and proc.aname != "ffmpeg"
-    and (proc.cmdline contains "mmap" or proc.libs contains "libasound.so")
     and not proc.is_container
   output: >
     Audio capture opened by suspicious process: user=%user.name
     process=%proc.name pid=%proc.pid cmdline=%proc.cmdline
-    parent=%proc.pname libs=%proc.libs
+    parent=%proc.pname fd=%fd.name
   priority: WARNING
   tags: [acoustic_covert_channel, shellcode_loader, mitre_t1095, mitre_t1059]
   source: syscall
@@ -198,6 +197,7 @@ For environments running Falco or custom eBPF audit (Suricata is network-only an
 
 - The allowlist (`pulseaudio`, `pipewire`, `wireplumber`, `obs`, `audacity`, `ffmpeg`) covers the most common legitimate audio capture parents on modern Linux desktops — add site-specific entries (conferencing apps, voice assistants)
 - Container exclusion (`not proc.is_container`) is conservative — adapt to your container strategy (Falco can also run inside containers)
+- This rule intentionally does **not** use `proc.libs`: it is not a portable Falco field. If libasound linkage matters in your environment, enrich events in your SIEM or pair this runtime rule with the YARA static rule.
 
 ---
 
@@ -211,7 +211,7 @@ For maximum coverage, deploy in this layered order:
 
 Combined, the three layers cover: pre-execution (YARA static scan), real-time execution (Sigma), and runtime kernel events (Falco). The PoC author's binary contains all the distinctive markers and would be caught by the high-confidence YARA branch alone.
 
-For environments where executable file scanning is too noisy, **the Falco rule is the highest-leverage single deployment** — it triggers only on the runtime behaviour combination (audio capture + suspicious process), which is the unavoidable signature of any acoustic shellcode loader regardless of how the binary is obfuscated.
+For environments where executable file scanning is too noisy, **the Falco rule is the highest-leverage runtime triage signal** — it catches unexpected audio-device access by non-audio processes. Treat it as a starting point and pair it with RWX `mmap` / socket correlation before using it as a high-confidence production detection.
 
 ---
 
@@ -229,8 +229,8 @@ gcc receiver_live.c -o receiver_live -lasound -lm
 yara /path/to/rule.yar receiver_live
 # Expected: Acoustic_FSK_Shellcode_Receiver_Cocomelonc receiver_live
 
-# 2. Test Sigma/Falco: run ./receiver_live in instrumented host
-#    Falco rule should fire within seconds of execution
+# 2. Test Sigma/Falco: syntax-check the rules, then run ./receiver_live in an instrumented host
+#    Falco should fire on the audio-device open; Sigma requires correlation support as described above
 
 # 3. Test against unrelated audio apps to verify FP rate
 yara /path/to/rule.yar /usr/bin/audacity /usr/bin/ffmpeg /usr/bin/obs
